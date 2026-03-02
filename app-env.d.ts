@@ -1,5 +1,4 @@
 // @ts-ignore
-/// <reference types="src/uniwind-types.d.ts" />
 /// <reference types="fbtee/ReactTypes.d.ts" />
 
 declare module '*.svg' {

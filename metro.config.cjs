@@ -1,7 +1,6 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { createHash } = require('node:crypto');
 const { existsSync, readFileSync } = require('node:fs');
-const { withUniwindConfig } = require('uniwind/metro');
 
 const getCacheVersion = (values) =>
   values
@@ -14,32 +13,23 @@ const getCacheVersion = (values) =>
 
 const config = getDefaultConfig(__dirname);
 
-module.exports = withUniwindConfig(
-  {
-    ...config,
-    cacheVersion: getCacheVersion([
-      config.cacheVersion,
-      readFileSync('./pnpm-lock.yaml', 'utf8'),
-      readFileSync('./package.json', 'utf8'),
-      existsSync('./.env') && readFileSync('./.env', 'utf8'),
-      existsSync('./.env.local') && readFileSync('./.env.local', 'utf8'),
-    ]),
-    resolver: {
-      ...config.resolver,
-      assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
-      sourceExts: [...config.resolver.sourceExts, 'svg'],
-      unstable_enableSymlinks: true,
-    },
-    transformer: {
-      ...config.transformer,
-      babelTransformerPath: require.resolve('react-native-svg-transformer/expo'),
-    },
+module.exports = {
+  ...config,
+  cacheVersion: getCacheVersion([
+    config.cacheVersion,
+    readFileSync('./pnpm-lock.yaml', 'utf8'),
+    readFileSync('./package.json', 'utf8'),
+    existsSync('./.env') && readFileSync('./.env', 'utf8'),
+    existsSync('./.env.local') && readFileSync('./.env.local', 'utf8'),
+  ]),
+  resolver: {
+    ...config.resolver,
+    assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
+    sourceExts: [...config.resolver.sourceExts, 'svg'],
+    unstable_enableSymlinks: true,
   },
-  {
-    cssEntryFile: './global.css',
-    dtsFile: './src/uniwind-types.d.ts',
-    polyfills: {
-      rem: 16,
-    },
+  transformer: {
+    ...config.transformer,
+    babelTransformerPath: require.resolve('react-native-svg-transformer/expo'),
   },
-);
+};

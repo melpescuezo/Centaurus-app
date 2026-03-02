@@ -3,6 +3,7 @@
     "name": "Frecuencia FM",
     "slug": "frecuencia-fm",
     "version": "1.0.0",
+    "entryPoint": "./index.js",
     "scheme": "frecuencia-fm",
     "web": {
       "bundler": "metro",
@@ -63,6 +64,12 @@
         "backgroundColor": "#ffffff"
       },
       "package": "app.frecuenciafm",
+      "permissions": [
+        "INTERNET",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "predictiveBackGestureEnabled": true,
       "usesCleartextTraffic": true
     },
@@ -70,7 +77,11 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "6cb82dbf-7561-4204-8633-10fb6a7cea47"
       }
-    }
+    },
+    "owner": "melpescuezo"
   }
 }
