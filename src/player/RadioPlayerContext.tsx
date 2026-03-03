@@ -30,6 +30,7 @@ const METADATA_POLL_MS = 15000;
 const BUFFER_TIMEOUT_MS = 9000;
 const RECONNECT_BASE_MS = 1500;
 const RECONNECT_MAX_MS = 15000;
+const DEFAULT_ARTWORK = require('../../frecuenciafm.png');
 
 const DEFAULT_NOW_PLAYING: NowPlaying = {
   artist: '95.5 Murcia',
@@ -37,8 +38,8 @@ const DEFAULT_NOW_PLAYING: NowPlaying = {
 };
 
 const EVT_PLAYBACK_STATE = 'playback-state';
-const EVT_PLAYBACK_METADATA = 'playback-metadata-received';
 const EVT_METADATA_COMMON = 'metadata-common-received';
+const EVT_METADATA_TIMED = 'metadata-timed-received';
 const EVT_PLAYBACK_ERROR = 'playback-error';
 const STATE_PLAYING = 'playing';
 const STATE_BUFFERING = 'buffering';
@@ -111,7 +112,7 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
     const delay = Math.min(RECONNECT_BASE_MS * attempt, RECONNECT_MAX_MS);
     reconnectTimeoutRef.current = setTimeout(async () => {
       try {
-        await playStream(STREAM_URL, STATION_NAME);
+        await playStream(STREAM_URL, STATION_NAME, DEFAULT_NOW_PLAYING.artist);
         reconnectAttemptsRef.current = 0;
       } catch {
         scheduleReconnect();
@@ -127,6 +128,8 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
         await TrackPlayer.updateMetadataForTrack(activeIndex, {
           artist: next.artist,
           title: next.title,
+          album: 'En Directo',
+          artwork: DEFAULT_ARTWORK,
         });
       }
     } catch {
@@ -151,6 +154,26 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
       // Ignore transient metadata/network failures.
     }
   }, [applyNowPlaying]);
+
+  const applyMetadataEvent = useCallback(
+    (event: any) => {
+      const metadata = event?.metadata ?? event;
+      const title = metadata?.title?.trim();
+      if (!title) return;
+
+      const artist = metadata?.artist?.trim();
+      if (artist) {
+        void applyNowPlaying({ artist, title });
+        return;
+      }
+
+      const parsed = parseArtistTitle(title);
+      if (parsed) {
+        void applyNowPlaying(parsed);
+      }
+    },
+    [applyNowPlaying],
+  );
 
   useEffect(() => {
     void setupPlayer();
@@ -184,43 +207,15 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const metaSub = TrackPlayer.addEventListener(EVT_PLAYBACK_METADATA as never, (event: any) => {
-      const withArtist = event?.artist?.trim() && event?.title?.trim();
-      if (withArtist) {
-        void applyNowPlaying({
-          artist: event.artist.trim(),
-          title: event.title.trim(),
-        });
-        return;
-      }
-
-      const fallbackTitle = event?.title?.trim();
-      if (fallbackTitle) {
-        const parsed = parseArtistTitle(fallbackTitle);
-        if (parsed) {
-          void applyNowPlaying(parsed);
-        }
-      }
-    });
-
     const commonMetaSub = TrackPlayer.addEventListener(
       EVT_METADATA_COMMON as never,
       (event: any) => {
-        const title = event?.metadata?.title?.trim();
-        if (!title) return;
-
-        const artist = event?.metadata?.artist?.trim();
-        if (artist) {
-          void applyNowPlaying({ artist, title });
-          return;
-        }
-
-        const parsed = parseArtistTitle(title);
-        if (parsed) {
-          void applyNowPlaying(parsed);
-        }
+        applyMetadataEvent(event);
       },
     );
+    const timedMetaSub = TrackPlayer.addEventListener(EVT_METADATA_TIMED as never, (event: any) => {
+      applyMetadataEvent(event);
+    });
 
     void refreshStreamMetadata();
     const interval = setInterval(() => {
@@ -233,10 +228,11 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
       clearBufferTimeout();
       stateSub.remove();
       errorSub.remove();
-      metaSub.remove();
       commonMetaSub.remove();
+      timedMetaSub.remove();
     };
   }, [
+    applyMetadataEvent,
     applyNowPlaying,
     clearBufferTimeout,
     clearReconnectTimeout,
@@ -257,7 +253,7 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
 
     shouldBePlayingRef.current = true;
     setIsBuffering(true);
-    await playStream(STREAM_URL, STATION_NAME);
+    await playStream(STREAM_URL, STATION_NAME, DEFAULT_NOW_PLAYING.artist);
     setIsPlaying(true);
     setIsBuffering(false);
     void refreshStreamMetadata();

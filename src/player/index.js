@@ -6,6 +6,8 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 
 let isPlayerReady = false;
+const BASE_CAPS = [Capability.Play, Capability.Pause, Capability.Stop];
+const DEFAULT_ARTWORK = require('../../frecuenciafm.png');
 
 export async function setupPlayer() {
   if (isPlayerReady) return;
@@ -15,8 +17,9 @@ export async function setupPlayer() {
     android: {
       appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
     },
-    capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-    compactCapabilities: [Capability.Play, Capability.Pause, Capability.Stop],
+    capabilities: BASE_CAPS,
+    compactCapabilities: BASE_CAPS,
+    notificationCapabilities: BASE_CAPS,
     stopWithApp: false,
   });
   await TrackPlayer.setRepeatMode(RepeatMode.Off);
@@ -24,12 +27,15 @@ export async function setupPlayer() {
   isPlayerReady = true;
 }
 
-export async function playStream(url, title = 'Live Stream') {
+export async function playStream(url, title = 'Live Stream', artist = '') {
   await setupPlayer();
   await TrackPlayer.reset();
   await TrackPlayer.add({
     isLiveStream: true,
     title,
+    artist,
+    album: 'En Directo',
+    artwork: DEFAULT_ARTWORK,
     url,
   });
   await TrackPlayer.play();
