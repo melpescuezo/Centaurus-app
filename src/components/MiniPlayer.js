@@ -47,8 +47,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
-    bottom: 82,
+    bottom: 12,
     gap: 8,
+    zIndex: 50,
+    elevation: 50,
   },
 
   errorRow: {

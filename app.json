@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Centaurus FM",
-    "slug": "centaurus-fm",
+    "slug": "centaurus-app",
     "version": "1.0.0",
     "entryPoint": "./index.js",
     "scheme": "centaurus-fm",
@@ -79,7 +79,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "6cb82dbf-7561-4204-8633-10fb6a7cea47"
+        "projectId": "f1a34586-1c81-46c0-9e6e-dc582099bc03"
       }
     },
     "owner": "melpescuezo"

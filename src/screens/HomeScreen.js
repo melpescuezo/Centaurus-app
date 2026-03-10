@@ -124,7 +124,7 @@ function SocialButton({ color, icon, onPress }) {
 
 export default function HomeScreen() {
   const { errorMessage, isBuffering, isPlaying, togglePlayback } = useRadioPlayer();
-  const [boardCollapsed, setBoardCollapsed] = useState(false);
+  const [boardCollapsed, setBoardCollapsed] = useState(true);
   const [boardError, setBoardError] = useState(false);
   const [boardLoading, setBoardLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -222,12 +222,21 @@ export default function HomeScreen() {
               </View>
 
               {boardCollapsed ? (
-                <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedBar}>
-                  <MaterialCommunityIcons color="#FFD200" name="gesture-tap" size={16} />
-                  <Text style={styles.boardCollapsedText}>
-                    Tablón minimizado. Toca para mostrar eventos.
-                  </Text>
-                </Pressable>
+                <>
+                  <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedBar}>
+                    <MaterialCommunityIcons color="#FFD200" name="gesture-tap" size={16} />
+                    <Text style={styles.boardCollapsedText}>
+                      Tablón minimizado. Toca para mostrar eventos.
+                    </Text>
+                  </Pressable>
+                  <View style={styles.devCreditWrap}>
+                    <Text style={styles.devCreditText}>
+                      {
+                        'Desarrollado por:\n\nTODO FM S.L.\ninfo@todofm.com\nApasionados por la radio 📻'
+                      }
+                    </Text>
+                  </View>
+                </>
               ) : (
                 <View style={styles.boardContent}>
                   <WebView
@@ -482,6 +491,18 @@ const styles = StyleSheet.create({
     color: '#f2f2f2',
     fontSize: 12,
     fontWeight: '600',
+  },
+  devCreditWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  devCreditText: {
+    color: '#f3f3f3',
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.88,
+    textAlign: 'center',
   },
   boardContent: {
     height: 300,
