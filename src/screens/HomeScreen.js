@@ -1,6 +1,6 @@
 // @ts-nocheck
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -30,6 +30,12 @@ const EVENTS_URL = 'https://centaurusfm.com/eventos/';
 const EVENTS_CLEANUP_SCRIPT = `
   (function() {
     const selectors = [
+      'header',
+      'footer',
+      '#header',
+      '#footer',
+      '.site-header',
+      '.site-footer',
       '.wp-site-blocks > header.wp-block-template-part',
       '.wp-site-blocks > footer.wp-block-template-part',
       '.menu-header',
@@ -47,16 +53,23 @@ const EVENTS_CLEANUP_SCRIPT = `
       '.tribe-events-c-top-bar__datepicker-button'
     ];
 
+    const hideNode = (node) => {
+      if (!node || !node.style) return;
+      node.style.display = 'none';
+      node.style.visibility = 'hidden';
+      node.style.height = '0';
+      node.style.minHeight = '0';
+      node.style.padding = '0';
+      node.style.margin = '0';
+      node.style.overflow = 'hidden';
+      node.style.maxHeight = '0';
+      node.setAttribute('aria-hidden', 'true');
+    };
+
     const apply = () => {
       selectors.forEach((selector) => {
         document.querySelectorAll(selector).forEach((node) => {
-          node.style.display = 'none';
-          node.style.visibility = 'hidden';
-          node.style.height = '0';
-          node.style.minHeight = '0';
-          node.style.padding = '0';
-          node.style.margin = '0';
-          node.style.overflow = 'hidden';
+          hideNode(node);
         });
       });
 
@@ -93,7 +106,8 @@ const EVENTS_CLEANUP_SCRIPT = `
           '.tribe-events-view h1, .tribe-events-view h2, .tribe-events-view h3, .tribe-events-view h4, .tribe-events-view p, .tribe-events-view span, .tribe-events-view div { color:#111111 !important; }',
           '.tribe-events-c-messages, .tribe-events-c-messages__message, .tribe-events-notices, .tribe-events-notices li, .tribe-events-header__messages, .tribe-events-header__messages * { color:#000000 !important; }',
           '.tribe-events a { color:#7f2969 !important; }',
-          '.tribe-events-c-top-bar, .tribe-events-header__top-bar { background:#ffffff !important; border-color:#e6e6e6 !important; }'
+          '.tribe-events-c-top-bar, .tribe-events-header__top-bar { background:#ffffff !important; border-color:#e6e6e6 !important; }',
+          'header, footer, #header, #footer, .site-header, .site-footer, .wp-site-blocks > header.wp-block-template-part, .wp-site-blocks > footer.wp-block-template-part { display:none !important; visibility:hidden !important; height:0 !important; min-height:0 !important; margin:0 !important; padding:0 !important; overflow:hidden !important; max-height:0 !important; }'
         ].join('');
         document.head.appendChild(styleTag);
       }
@@ -103,6 +117,21 @@ const EVENTS_CLEANUP_SCRIPT = `
     setTimeout(apply, 250);
     setTimeout(apply, 1000);
     setTimeout(apply, 2200);
+
+    // iOS sometimes hydrates/updates this page late; keep cleanup active briefly.
+    let observer = null;
+    if (window.MutationObserver) {
+      observer = new MutationObserver(apply);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      setTimeout(() => observer && observer.disconnect(), 12000);
+    }
+
+    let runs = 0;
+    const intervalId = setInterval(() => {
+      apply();
+      runs += 1;
+      if (runs >= 20) clearInterval(intervalId);
+    }, 600);
     return true;
   })();
 `;
@@ -128,6 +157,8 @@ export default function HomeScreen() {
   const [boardError, setBoardError] = useState(false);
   const [boardLoading, setBoardLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const boardWebviewRef = useRef(null);
+  const boardCleanupTimerRef = useRef(null);
 
   const openExternal = useCallback((url) => {
     Linking.openURL(url).catch(() => {});
@@ -142,6 +173,25 @@ export default function HomeScreen() {
   const toggleBoardCollapsed = useCallback(() => {
     setBoardCollapsed((prev) => !prev);
   }, []);
+
+  const clearBoardCleanupTimer = useCallback(() => {
+    if (boardCleanupTimerRef.current) {
+      clearInterval(boardCleanupTimerRef.current);
+      boardCleanupTimerRef.current = null;
+    }
+  }, []);
+
+  const reinforceBoardCleanup = useCallback(() => {
+    const webview = boardWebviewRef.current;
+    if (!webview?.injectJavaScript) return;
+    webview.injectJavaScript(EVENTS_CLEANUP_SCRIPT);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearBoardCleanupTimer();
+    };
+  }, [clearBoardCleanupTimer]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -240,6 +290,7 @@ export default function HomeScreen() {
               ) : (
                 <View style={styles.boardContent}>
                   <WebView
+                    ref={boardWebviewRef}
                     key={reloadKey}
                     injectedJavaScript={EVENTS_CLEANUP_SCRIPT}
                     injectedJavaScriptBeforeContentLoaded={EVENTS_CLEANUP_SCRIPT}
@@ -252,8 +303,20 @@ export default function HomeScreen() {
                       setBoardError(true);
                       setBoardLoading(false);
                     }}
-                    onLoadEnd={() => setBoardLoading(false)}
+                    onLoadEnd={() => {
+                      setBoardLoading(false);
+                      reinforceBoardCleanup();
+                      clearBoardCleanupTimer();
+                      let runs = 0;
+                      boardCleanupTimerRef.current = setInterval(() => {
+                        reinforceBoardCleanup();
+                        runs += 1;
+                        if (runs >= 15) clearBoardCleanupTimer();
+                      }, 500);
+                    }}
+                    onLoadProgress={() => reinforceBoardCleanup()}
                     onLoadStart={() => {
+                      clearBoardCleanupTimer();
                       setBoardError(false);
                       setBoardLoading(true);
                     }}
