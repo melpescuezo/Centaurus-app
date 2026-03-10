@@ -1,252 +1,542 @@
-console.log('🔥 INDEX TABS ACTIVO');
-
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, View } from 'react-native';
+// @ts-nocheck
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  ImageBackground,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
+import HOME_BACKGROUND from '../../Fondo.png';
+import LOGO_IMAGE from '../../logo.png';
+import {
+  EMAIL_URL,
+  FACEBOOK_URL,
+  INSTAGRAM_URL,
+  LIVE_BADGE_TEXT,
+  STATION_NAME,
+  STATION_SUBTITLE,
+  WHATSAPP_URL,
+} from '../config/radioConfig.js';
 import { useRadioPlayer } from '../player/RadioPlayerContext.js';
 
-const VINYL_SIZE = 300;
-const WAVE_BARS = 21;
-const BAR_HEIGHT = 36;
+const EVENTS_URL = 'https://centaurusfm.com/eventos/';
+const EVENTS_CLEANUP_SCRIPT = `
+  (function() {
+    const selectors = [
+      '.wp-site-blocks > header.wp-block-template-part',
+      '.wp-site-blocks > footer.wp-block-template-part',
+      '.menu-header',
+      '#btnRadio',
+      '.audioigniter-root',
+      '#audioigniter-33',
+      '#cookie-notice',
+      '.cookie-notice',
+      '.cn-notice',
+      '.tribe-events-c-events-bar',
+      '.tribe-events-header__events-bar',
+      '.tribe-events-header__messages',
+      '.tribe-events-c-top-bar__nav',
+      '.tribe-events-c-top-bar__today-button',
+      '.tribe-events-c-top-bar__datepicker-button'
+    ];
+
+    const apply = () => {
+      selectors.forEach((selector) => {
+        document.querySelectorAll(selector).forEach((node) => {
+          node.style.display = 'none';
+          node.style.visibility = 'hidden';
+          node.style.height = '0';
+          node.style.minHeight = '0';
+          node.style.padding = '0';
+          node.style.margin = '0';
+          node.style.overflow = 'hidden';
+        });
+      });
+
+      document.querySelectorAll('body, html').forEach((node) => {
+        node.style.background = '#ffffff';
+        node.style.color = '#111111';
+        node.style.margin = '0';
+        node.style.padding = '0';
+      });
+
+      // Fit full events area in view while keeping a finer appearance.
+      const scale = 0.78;
+      document.documentElement.style.zoom = '1';
+      document.body.style.zoom = '1';
+      const scaleRoot = document.querySelector('.wp-site-blocks') || document.body;
+      scaleRoot.style.transform = 'scale(' + scale + ')';
+      scaleRoot.style.transformOrigin = 'top left';
+      scaleRoot.style.width = (100 / scale) + '%';
+
+      const appRoot = document.querySelector('.wp-site-blocks');
+      if (appRoot) {
+        appRoot.style.background = '#ffffff';
+        appRoot.style.color = '#111111';
+        appRoot.style.margin = '0';
+        appRoot.style.padding = '0';
+      }
+
+      let styleTag = document.getElementById('cfm-events-light');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'cfm-events-light';
+        styleTag.innerHTML = [
+          'html, body, .wp-site-blocks, .tribe-common, .tribe-events, .tribe-block, .tribe-events-view, .tribe-events-l-container { background:#ffffff !important; color:#111111 !important; }',
+          '.tribe-events-view h1, .tribe-events-view h2, .tribe-events-view h3, .tribe-events-view h4, .tribe-events-view p, .tribe-events-view span, .tribe-events-view div { color:#111111 !important; }',
+          '.tribe-events-c-messages, .tribe-events-c-messages__message, .tribe-events-notices, .tribe-events-notices li, .tribe-events-header__messages, .tribe-events-header__messages * { color:#000000 !important; }',
+          '.tribe-events a { color:#7f2969 !important; }',
+          '.tribe-events-c-top-bar, .tribe-events-header__top-bar { background:#ffffff !important; border-color:#e6e6e6 !important; }'
+        ].join('');
+        document.head.appendChild(styleTag);
+      }
+    };
+
+    apply();
+    setTimeout(apply, 250);
+    setTimeout(apply, 1000);
+    setTimeout(apply, 2200);
+    return true;
+  })();
+`;
+
+function SocialButton({ color, icon, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ hovered, pressed }) => [
+        styles.socialButton,
+        hovered && styles.socialButtonHovered,
+        pressed && styles.socialButtonPressed,
+      ]}
+    >
+      <MaterialCommunityIcons color={color} name={icon} size={22} />
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
-  const { isPlaying, togglePlayback } = useRadioPlayer();
+  const { errorMessage, isBuffering, isPlaying, togglePlayback } = useRadioPlayer();
+  const [boardCollapsed, setBoardCollapsed] = useState(false);
+  const [boardError, setBoardError] = useState(false);
+  const [boardLoading, setBoardLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const rotation = useRef(new Animated.Value(0)).current;
-  const waveScale = useRef(new Animated.Value(1)).current;
-  const isActiveRef = useRef(false);
-
-  const rotationLoop = useRef(null);
-  const waveLoop = useRef(null);
-
-  const bars = useMemo(() => Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.2)), []);
-
-  const animateBar = useCallback((bar) => {
-    if (!isActiveRef.current) return;
-    const peak = 0.25 + Math.random() * 0.75;
-    const low = 0.15 + Math.random() * 0.25;
-    const rise = 220 + Math.random() * 200;
-    const fall = 220 + Math.random() * 220;
-
-    Animated.sequence([
-      Animated.timing(bar, {
-        toValue: peak,
-        duration: rise,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(bar, {
-        toValue: low,
-        duration: fall,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished && isActiveRef.current) {
-        animateBar(bar);
-      }
-    });
+  const openExternal = useCallback((url) => {
+    Linking.openURL(url).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (isPlaying) {
-      isActiveRef.current = true;
-      rotation.setValue(0);
+  const reloadBoard = useCallback(() => {
+    setBoardError(false);
+    setBoardLoading(true);
+    setReloadKey((prev) => prev + 1);
+  }, []);
 
-      rotationLoop.current = Animated.loop(
-        Animated.timing(rotation, {
-          toValue: 1,
-          duration: 5000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      );
-
-      waveLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(waveScale, {
-            toValue: 1.6,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(waveScale, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-
-      rotationLoop.current.start();
-      waveLoop.current.start();
-      bars.forEach((bar) => animateBar(bar));
-    } else {
-      isActiveRef.current = false;
-      rotationLoop.current?.stop();
-      waveLoop.current?.stop();
-
-      rotation.setValue(0);
-      waveScale.setValue(1);
-      bars.forEach((bar) => bar.setValue(0.2));
-    }
-  }, [animateBar, bars, isPlaying, rotation, waveScale]);
-
-  const rotateInterpolate = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const onTogglePlayback = useCallback(async () => {
-    await togglePlayback();
-  }, [togglePlayback]);
+  const toggleBoardCollapsed = useCallback(() => {
+    setBoardCollapsed((prev) => !prev);
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.centerStage}>
-          <Pressable onPress={onTogglePlayback}>
-            <View style={styles.stage}>
-              {/* 🌊 Onda */}
-              <Animated.View style={[styles.wave, { transform: [{ scale: waveScale }] }]} />
+      <ImageBackground source={HOME_BACKGROUND} style={styles.background} resizeMode="cover">
+        <View style={styles.overlay} />
+        <View style={styles.fixedContent}>
+          <View style={styles.centerBlock}>
+            <Image source={LOGO_IMAGE} style={styles.logo} />
+            <Text style={styles.stationName}>{STATION_NAME}</Text>
+            <Text style={styles.subtitle}>{STATION_SUBTITLE}</Text>
 
-              {/* 💿 Vinilo */}
-              <Animated.View style={[styles.vinyl, { transform: [{ rotate: rotateInterpolate }] }]}>
-                <View style={styles.ring1} />
-                <View style={styles.ring2} />
-                <View style={styles.centerOuter} />
-                <View style={styles.centerInner} />
-
-                <Image source={require('../../frecuenciafm.png')} style={styles.logo} />
-              </Animated.View>
+            <View style={styles.livePill}>
+              <View style={[styles.dot, { opacity: isPlaying ? 1 : 0.5 }]} />
+              <Text style={styles.livePillText}>{LIVE_BADGE_TEXT}</Text>
             </View>
-          </Pressable>
 
-          {/* 🎚 Waveform */}
-          <View style={styles.waveformWrap}>
-            <View style={styles.waveformRow}>
-              {bars.map((bar, index) => (
-                <Animated.View
-                  key={`bar-${index}`}
-                  style={[
-                    styles.waveBar,
-                    {
-                      transform: [
-                        { translateY: BAR_HEIGHT / 2 },
-                        {
-                          scaleY: bar.interpolate({
-                            inputRange: [0.1, 1],
-                            outputRange: [0.2, 1.6],
-                          }),
-                        },
-                        { translateY: -BAR_HEIGHT / 2 },
-                      ],
-                      opacity: bar.interpolate({
-                        inputRange: [0.1, 1],
-                        outputRange: [0.35, 1],
-                      }),
-                    },
-                  ]}
-                />
-              ))}
+            <Pressable onPress={togglePlayback} style={styles.playButton}>
+              <MaterialCommunityIcons
+                color="#ffffff"
+                name={isPlaying ? 'pause' : 'play'}
+                size={28}
+                style={isPlaying ? undefined : styles.playIconShift}
+              />
+              <Text style={styles.playButtonText}>
+                {isBuffering ? 'Conectando...' : isPlaying ? 'Pausar' : 'Reproducir'}
+              </Text>
+            </Pressable>
+
+            {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+            <View style={styles.socialRow}>
+              <SocialButton
+                color="#0866ff"
+                icon="facebook"
+                onPress={() => openExternal(FACEBOOK_URL)}
+              />
+              <SocialButton
+                color="#f00075"
+                icon="instagram"
+                onPress={() => openExternal(INSTAGRAM_URL)}
+              />
+              <SocialButton
+                color="#25d366"
+                icon="whatsapp"
+                onPress={() => openExternal(WHATSAPP_URL)}
+              />
+              <SocialButton
+                color="#ffffff"
+                icon="email-outline"
+                onPress={() => openExternal(EMAIL_URL)}
+              />
+            </View>
+
+            <View style={styles.boardCard}>
+              <View style={styles.boardHeader}>
+                <View style={styles.boardTitleRow}>
+                  <MaterialCommunityIcons color="#FFD200" name="bullhorn-outline" size={18} />
+                  <Text style={styles.boardTitle}>Tablón de Anuncios</Text>
+                </View>
+                <View style={styles.boardHeaderActions}>
+                  <Pressable
+                    onPress={() => openExternal(EVENTS_URL)}
+                    style={styles.boardOpenButton}
+                  >
+                    <Text style={styles.boardOpenText}>Abrir</Text>
+                  </Pressable>
+                  <Pressable onPress={toggleBoardCollapsed} style={styles.boardToggleButton}>
+                    <MaterialCommunityIcons
+                      color="#000000"
+                      name={boardCollapsed ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                    />
+                    <Text style={styles.boardToggleText}>
+                      {boardCollapsed ? 'Mostrar' : 'Minimizar'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {boardCollapsed ? (
+                <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedBar}>
+                  <MaterialCommunityIcons color="#FFD200" name="gesture-tap" size={16} />
+                  <Text style={styles.boardCollapsedText}>
+                    Tablón minimizado. Toca para mostrar eventos.
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={styles.boardContent}>
+                  <WebView
+                    key={reloadKey}
+                    injectedJavaScript={EVENTS_CLEANUP_SCRIPT}
+                    injectedJavaScriptBeforeContentLoaded={EVENTS_CLEANUP_SCRIPT}
+                    nestedScrollEnabled
+                    onError={() => {
+                      setBoardError(true);
+                      setBoardLoading(false);
+                    }}
+                    onHttpError={() => {
+                      setBoardError(true);
+                      setBoardLoading(false);
+                    }}
+                    onLoadEnd={() => setBoardLoading(false)}
+                    onLoadStart={() => {
+                      setBoardError(false);
+                      setBoardLoading(true);
+                    }}
+                    source={{ uri: EVENTS_URL }}
+                    style={styles.boardWebview}
+                    startInLoadingState={false}
+                    showsVerticalScrollIndicator
+                  />
+
+                  {boardLoading && !boardError && (
+                    <View style={styles.boardOverlay}>
+                      <ActivityIndicator color="#FFD200" size="small" />
+                      <Text style={styles.boardOverlayText}>Cargando eventos...</Text>
+                    </View>
+                  )}
+
+                  {boardError && (
+                    <View style={styles.boardOverlay}>
+                      <Text style={styles.boardErrorTitle}>No se pudo cargar el tablón</Text>
+                      <View style={styles.boardErrorActions}>
+                        <Pressable onPress={reloadBoard} style={styles.boardRetryButton}>
+                          <Text style={styles.boardRetryText}>Reintentar</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => openExternal(EVENTS_URL)}
+                          style={styles.boardRetryButtonGhost}
+                        >
+                          <Text style={styles.boardRetryTextGhost}>Abrir en navegador</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         </View>
-      </View>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#000' },
-  container: { flex: 1 },
-  centerStage: {
+  safeArea: {
+    backgroundColor: '#000',
+    flex: 1,
+  },
+  background: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+  },
+  fixedContent: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 90,
+    justifyContent: 'flex-start',
+    paddingBottom: 190,
+    paddingHorizontal: 24,
+    paddingTop: 18,
   },
-
-  stage: {
-    width: 360,
-    height: 360,
+  centerBlock: {
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
   },
-
-  wave: {
-    position: 'absolute',
-    width: VINYL_SIZE,
-    height: VINYL_SIZE,
-    borderRadius: VINYL_SIZE / 2,
-    backgroundColor: '#0000fe',
-    opacity: 0.25,
-  },
-
-  vinyl: {
-    width: VINYL_SIZE,
-    height: VINYL_SIZE,
-    borderRadius: VINYL_SIZE / 2,
-    backgroundColor: '#050507',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  ring1: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 1,
-    borderColor: '#111',
-  },
-
-  ring2: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: '#111',
-  },
-
-  centerOuter: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#0f0f18',
-  },
-
-  centerInner: {
-    position: 'absolute',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#0000fe',
-  },
-
   logo: {
-    width: 180,
-    height: 180,
-    resizeMode: 'contain',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 62,
+    borderWidth: 2,
+    height: 124,
+    marginBottom: 2,
+    width: 124,
   },
-
-  waveformWrap: {
-    marginTop: 110,
+  stationName: {
+    color: '#ffffff',
+    fontSize: 38,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    opacity: 0.92,
+  },
+  livePill: {
     alignItems: 'center',
-    transform: [{ translateY: 36 }],
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-
-  waveformRow: {
+  dot: {
+    backgroundColor: '#f43856',
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  livePillText: {
+    color: '#f3f7ff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  playButton: {
+    alignItems: 'center',
+    backgroundColor: '#7f2969',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 8,
+    minWidth: 180,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+  },
+  playButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  playIconShift: {
+    marginLeft: 2,
+  },
+  errorText: {
+    color: '#ffd3db',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  socialButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.52)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: 24,
+    borderWidth: 1,
+    justifyContent: 'center',
+    height: 48,
+    width: 48,
+  },
+  socialButtonHovered: {
+    backgroundColor: 'rgba(255, 210, 0, 0.14)',
+    borderColor: '#FFD200',
+  },
+  socialButtonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.96 }],
+  },
+  boardCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderColor: 'rgba(255, 210, 0, 0.6)',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 14,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  boardHeader: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(127, 41, 105, 0.28)',
+    borderBottomColor: 'rgba(255, 210, 0, 0.35)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  boardHeaderActions: {
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
-    alignItems: 'flex-end',
   },
-
-  waveBar: {
-    width: 7,
-    height: BAR_HEIGHT,
-    borderRadius: 3,
-    backgroundColor: '#8aa7ff',
+  boardTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  boardTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  boardOpenButton: {
+    backgroundColor: '#FFD200',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  boardOpenText: {
+    color: '#000000',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  boardToggleButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFD200',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  boardToggleText: {
+    color: '#000000',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  boardCollapsedBar: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  boardCollapsedText: {
+    color: '#f2f2f2',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  boardContent: {
+    height: 300,
+    position: 'relative',
+    width: '100%',
+  },
+  boardWebview: {
+    backgroundColor: '#ffffff',
+    flex: 1,
+  },
+  boardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    backgroundColor: 'rgba(5, 5, 5, 0.9)',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  boardOverlayText: {
+    color: '#f3f3f3',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  boardErrorTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  boardErrorActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  boardRetryButton: {
+    backgroundColor: '#FFD200',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  boardRetryText: {
+    color: '#000000',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  boardRetryButtonGhost: {
+    borderColor: '#FFD200',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  boardRetryTextGhost: {
+    color: '#FFD200',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
