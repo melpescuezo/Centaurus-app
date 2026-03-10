@@ -7,7 +7,7 @@ import TrackPlayer, {
 
 let isPlayerReady = false;
 const BASE_CAPS = [Capability.Play, Capability.Pause, Capability.Stop];
-const DEFAULT_ARTWORK = require('../../frecuenciafm.png');
+const DEFAULT_ARTWORK = require('../../logo.png');
 
 export async function setupPlayer() {
   if (isPlayerReady) return;

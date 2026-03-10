@@ -14,7 +14,7 @@ type PlayerUIProps = {
   onPress?: () => void;
 };
 
-const LOGO_SOURCE: ImageSourcePropType = require('../../frecuenciafm.png');
+const LOGO_SOURCE: ImageSourcePropType = require('../../logo.png');
 
 const LED_COLORS = [
   '#2bff88',

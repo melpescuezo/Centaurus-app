@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Frecuencia FM",
-    "slug": "frecuencia-fm",
+    "name": "Centaurus FM",
+    "slug": "centaurus-fm",
     "version": "1.0.0",
     "entryPoint": "./index.js",
-    "scheme": "frecuencia-fm",
+    "scheme": "centaurus-fm",
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -42,7 +42,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.frecuenciafm",
+      "bundleIdentifier": "app.centaurusfm",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["audio"],
@@ -63,7 +63,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.frecuenciafm",
+      "package": "app.centaurusfm",
       "permissions": [
         "INTERNET",
         "WAKE_LOCK",

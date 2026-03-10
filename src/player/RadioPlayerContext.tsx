@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import TrackPlayer from 'react-native-track-player';
+import { STATION_NAME, STREAM_URL } from '../config/radioConfig.js';
 import { playStream, setupPlayer, stopStream } from './index.js';
 
 type NowPlaying = {
@@ -17,23 +18,23 @@ type NowPlaying = {
 };
 
 type RadioPlayerContextValue = {
+  errorMessage: string | null;
   isBuffering: boolean;
   isPlaying: boolean;
   nowPlaying: NowPlaying;
   togglePlayback: () => Promise<void>;
 };
 
-const STREAM_URL = 'https://server1.easystreaming.pro:8443/95.5';
-const NOW_PLAYING_URL = 'https://server1.easystreaming.pro:8443/status-json.xsl';
-const STATION_NAME = 'Frecuencia FM';
+const NOW_PLAYING_URL = 'https://fra-pioneer01.dedicateware.com:3035/status-json.xsl';
+const STREAM_MOUNT_PATH = '/stream';
 const METADATA_POLL_MS = 15000;
 const BUFFER_TIMEOUT_MS = 9000;
 const RECONNECT_BASE_MS = 1500;
 const RECONNECT_MAX_MS = 15000;
-const DEFAULT_ARTWORK = require('../../frecuenciafm.png');
+const DEFAULT_ARTWORK = require('../../logo.png');
 
 const DEFAULT_NOW_PLAYING: NowPlaying = {
-  artist: '95.5 Murcia',
+  artist: STATION_NAME,
   title: STATION_NAME,
 };
 
@@ -69,7 +70,14 @@ const parseNowPlayingJson = (payload: unknown): NowPlaying | null => {
     | Record<string, unknown>
     | Array<Record<string, unknown>>
     | undefined;
-  const active = Array.isArray(source) ? source[0] : source;
+  let active = Array.isArray(source) ? source[0] : source;
+  if (Array.isArray(source)) {
+    const mountMatch = source.find((item) => {
+      const listenUrl = (item.listenurl as string | undefined) ?? '';
+      return listenUrl.includes(STREAM_MOUNT_PATH);
+    });
+    if (mountMatch) active = mountMatch;
+  }
   if (!active) return null;
   const rawTitle =
     (active.title as string | undefined) ||
@@ -81,6 +89,7 @@ const parseNowPlayingJson = (payload: unknown): NowPlaying | null => {
 };
 
 export function RadioPlayerProvider({ children }: { children: ReactNode }) {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [nowPlaying, setNowPlaying] = useState<NowPlaying>(DEFAULT_NOW_PLAYING);
@@ -112,9 +121,11 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
     const delay = Math.min(RECONNECT_BASE_MS * attempt, RECONNECT_MAX_MS);
     reconnectTimeoutRef.current = setTimeout(async () => {
       try {
+        setErrorMessage(null);
         await playStream(STREAM_URL, STATION_NAME, DEFAULT_NOW_PLAYING.artist);
         reconnectAttemptsRef.current = 0;
       } catch {
+        setErrorMessage('No se pudo reconectar al streaming.');
         scheduleReconnect();
       }
     }, delay);
@@ -202,6 +213,7 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
     });
 
     const errorSub = TrackPlayer.addEventListener(EVT_PLAYBACK_ERROR as never, () => {
+      setErrorMessage('Error de reproducción en directo.');
       if (shouldBePlayingRef.current) {
         scheduleReconnect();
       }
@@ -245,6 +257,7 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
       shouldBePlayingRef.current = false;
       clearReconnectTimeout();
       clearBufferTimeout();
+      setErrorMessage(null);
       await stopStream();
       setIsPlaying(false);
       setIsBuffering(false);
@@ -252,21 +265,29 @@ export function RadioPlayerProvider({ children }: { children: ReactNode }) {
     }
 
     shouldBePlayingRef.current = true;
+    setErrorMessage(null);
     setIsBuffering(true);
-    await playStream(STREAM_URL, STATION_NAME, DEFAULT_NOW_PLAYING.artist);
-    setIsPlaying(true);
-    setIsBuffering(false);
-    void refreshStreamMetadata();
+    try {
+      await playStream(STREAM_URL, STATION_NAME, DEFAULT_NOW_PLAYING.artist);
+      setIsPlaying(true);
+      setIsBuffering(false);
+      void refreshStreamMetadata();
+    } catch {
+      setIsPlaying(false);
+      setIsBuffering(false);
+      setErrorMessage('No se pudo iniciar el streaming.');
+    }
   }, [clearBufferTimeout, clearReconnectTimeout, isPlaying, refreshStreamMetadata]);
 
   const value = useMemo(
     () => ({
+      errorMessage,
       isBuffering,
       isPlaying,
       nowPlaying,
       togglePlayback,
     }),
-    [isBuffering, isPlaying, nowPlaying, togglePlayback],
+    [errorMessage, isBuffering, isPlaying, nowPlaying, togglePlayback],
   );
 
   return <RadioPlayerContext.Provider value={value}>{children}</RadioPlayerContext.Provider>;

@@ -1,9 +1,10 @@
+// @ts-nocheck
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useCallback } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const INSTAGRAM_URL = 'https://www.instagram.com/frecuenciafm95.5murcia';
+const INSTAGRAM_URL = 'https://www.instagram.com/centaurusfm';
 const WHATSAPP_URL = 'https://wa.me/34673718593';
 
 export default function ContactScreen() {
@@ -18,7 +19,7 @@ export default function ContactScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.title}>Frecuencia FM</Text>
+        <Text style={styles.title}>Centaurus FM</Text>
 
         <View style={styles.actions}>
           <Pressable onPress={openInstagram} style={styles.actionButton}>
