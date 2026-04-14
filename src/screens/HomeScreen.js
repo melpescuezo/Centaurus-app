@@ -283,21 +283,13 @@ export default function HomeScreen() {
               </View>
 
               {boardCollapsed ? (
-                <>
-                  <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedBar}>
-                    <MaterialCommunityIcons color="#FFD200" name="gesture-tap" size={16} />
-                    <Text style={styles.boardCollapsedText}>
-                      Toca para mostrar eventos.
-                    </Text>
-                  </Pressable>
-                  <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedImageWrap}>
-                    <Image
-                      resizeMode="contain"
-                      source={BOARD_COLLAPSED_IMAGE}
-                      style={styles.boardCollapsedImage}
-                    />
-                  </Pressable>
-                </>
+                <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedImageWrap}>
+                  <Image
+                    resizeMode="contain"
+                    source={BOARD_COLLAPSED_IMAGE}
+                    style={styles.boardCollapsedImage}
+                  />
+                </Pressable>
               ) : (
                 <View style={styles.boardContent}>
                   <WebView
@@ -573,25 +565,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  boardCollapsedBar: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-  },
-  boardCollapsedText: {
-    color: '#f2f2f2',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   boardCollapsedImageWrap: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    justifyContent: 'center',
-    padding: 12,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 12,
     width: '100%',
   },
   boardCollapsedImage: {
