@@ -6,6 +6,7 @@ import {
   Image,
   ImageBackground,
   Linking,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import HOME_BACKGROUND from '../../Fondo.png';
 import LOGO_IMAGE from '../../logo.png';
+import BOARD_COLLAPSED_IMAGE from '../../assets/tablon-cerrado.jpg';
 import {
   EMAIL_URL,
   FACEBOOK_URL,
@@ -27,6 +29,7 @@ import {
 import { useRadioPlayer } from '../player/RadioPlayerContext.js';
 
 const EVENTS_URL = 'https://centaurusfm.com/eventos/';
+const BOARD_COLLAPSED_IMAGE_SOURCE = Image.resolveAssetSource(BOARD_COLLAPSED_IMAGE);
 const EVENTS_CLEANUP_SCRIPT = `
   (function() {
     const selectors = [
@@ -154,6 +157,7 @@ function SocialButton({ color, icon, onPress }) {
 export default function HomeScreen() {
   const { errorMessage, isBuffering, isPlaying, togglePlayback } = useRadioPlayer();
   const [boardCollapsed, setBoardCollapsed] = useState(true);
+  const [boardInfoVisible, setBoardInfoVisible] = useState(false);
   const [boardError, setBoardError] = useState(false);
   const [boardLoading, setBoardLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -197,6 +201,13 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ImageBackground source={HOME_BACKGROUND} style={styles.background} resizeMode="cover">
         <View style={styles.overlay} />
+        <Pressable
+          hitSlop={10}
+          onPress={() => setBoardInfoVisible(true)}
+          style={styles.screenInfoButton}
+        >
+          <MaterialCommunityIcons color="#ffffff" name="information-outline" size={18} />
+        </Pressable>
         <View style={styles.fixedContent}>
           <View style={styles.centerBlock}>
             <Image source={LOGO_IMAGE} style={styles.logo} />
@@ -276,16 +287,16 @@ export default function HomeScreen() {
                   <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedBar}>
                     <MaterialCommunityIcons color="#FFD200" name="gesture-tap" size={16} />
                     <Text style={styles.boardCollapsedText}>
-                      Tablón minimizado. Toca para mostrar eventos.
+                      Toca para mostrar eventos.
                     </Text>
                   </Pressable>
-                  <View style={styles.devCreditWrap}>
-                    <Text style={styles.devCreditText}>
-                      {
-                        'Desarrollado por:\n\nTODO FM S.L.\ninfo@todofm.com\nApasionados por la radio 📻'
-                      }
-                    </Text>
-                  </View>
+                  <Pressable onPress={toggleBoardCollapsed} style={styles.boardCollapsedImageWrap}>
+                    <Image
+                      resizeMode="contain"
+                      source={BOARD_COLLAPSED_IMAGE}
+                      style={styles.boardCollapsedImage}
+                    />
+                  </Pressable>
                 </>
               ) : (
                 <View style={styles.boardContent}>
@@ -354,6 +365,27 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setBoardInfoVisible(false)}
+          transparent
+          visible={boardInfoVisible}
+        >
+          <Pressable onPress={() => setBoardInfoVisible(false)} style={styles.boardInfoBackdrop}>
+            <Pressable onPress={() => {}} style={styles.boardInfoModal}>
+              <Pressable
+                hitSlop={10}
+                onPress={() => setBoardInfoVisible(false)}
+                style={styles.boardInfoCloseButton}
+              >
+                <MaterialCommunityIcons color="#ffffff" name="close" size={18} />
+              </Pressable>
+              <Text style={styles.boardInfoText}>
+                {'Desarrollado por:\n\nTODO FM S.L.\ninfo@todofm.com\nApasionados por la radio 📻'}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </ImageBackground>
     </SafeAreaView>
   );
@@ -555,16 +587,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  devCreditWrap: {
+  boardCollapsedImageWrap: {
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 12,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    padding: 12,
+    width: '100%',
   },
-  devCreditText: {
-    color: '#f3f3f3',
-    fontSize: 12,
-    fontWeight: '600',
-    opacity: 0.88,
+  boardCollapsedImage: {
+    aspectRatio:
+      BOARD_COLLAPSED_IMAGE_SOURCE.width / BOARD_COLLAPSED_IMAGE_SOURCE.height,
+    borderRadius: 18,
+    alignSelf: 'center',
+    maxWidth: '100%',
+    width: '100%',
+  },
+  screenInfoButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 999,
+    height: 28,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    width: 28,
+    zIndex: 5,
+  },
+  boardInfoBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  boardInfoModal: {
+    backgroundColor: '#121212',
+    borderColor: 'rgba(255, 210, 0, 0.45)',
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: 340,
+    paddingBottom: 24,
+    paddingHorizontal: 22,
+    paddingTop: 38,
+    width: '100%',
+  },
+  boardInfoCloseButton: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  boardInfoText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 22,
     textAlign: 'center',
   },
   boardContent: {
